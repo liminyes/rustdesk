@@ -35,7 +35,7 @@ class DesktopHomePage extends StatefulWidget {
 const borderColor = Color(0xFF2F65BA);
 
 class _DesktopHomePageState extends State<DesktopHomePage>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   final _leftPaneScrollController = ScrollController();
 
   @override
@@ -51,6 +51,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   bool isCardClosed = false;
 
   final RxBool _editHover = false.obs;
+  final RxBool _block = false.obs;
 
   final GlobalKey _childKey = GlobalKey();
 
@@ -58,14 +59,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Widget build(BuildContext context) {
     super.build(context);
     final isIncomingOnly = bind.isIncomingOnly();
-    return Row(
+    return _buildBlock(
+        child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildLeftPane(context),
         if (!isIncomingOnly) const VerticalDivider(width: 1),
         if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
       ],
-    );
+    ));
+  }
+
+  Widget _buildBlock({required Widget child}) {
+    return buildRemoteBlock(
+        block: _block, mask: true, use: canBeBlocked, child: child);
   }
 
   Widget buildLeftPane(BuildContext context) {
@@ -230,7 +237,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                         style: TextStyle(
                           fontSize: 22,
                         ),
-                      ),
+                      ).workaroundFreezeLinuxMint(),
                     ),
                   )
                 ],
@@ -326,7 +333,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                   EdgeInsets.only(top: 14, bottom: 10),
                             ),
                             style: TextStyle(fontSize: 15),
-                          ),
+                          ).workaroundFreezeLinuxMint(),
                         ),
                       ),
                       if (showOneTime)
@@ -423,7 +430,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         bind.mainUriPrefixSync().contains('rustdesk')) {
       return buildInstallCard(
           "Status",
-          "There is a newer version of ${bind.mainGetAppNameSync()} ${bind.mainGetNewVersion()} available.",
+          "${translate("new-version-of-{${bind.mainGetAppNameSync()}}-tip")} (${bind.mainGetNewVersion()}).",
           "Click to download", () async {
         final Uri url = Uri.parse('https://rustdesk.com/download');
         await launchUrl(url);
@@ -805,6 +812,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         _updateWindowSize();
       });
     }
+    WidgetsBinding.instance.addObserver(this);
   }
 
   _updateWindowSize() {
@@ -830,7 +838,16 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       platformFFI.unregisterEventHandler(
           kCheckSoftwareUpdateFinish, kCheckSoftwareUpdateFinish);
     }
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      shouldBeBlocked(_block, canBeBlocked);
+    }
   }
 
   Widget buildPluginEntry() {
@@ -923,7 +940,7 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
                       });
                     },
                     maxLength: maxLength,
-                  ),
+                  ).workaroundFreezeLinuxMint(),
                 ),
               ],
             ),
@@ -950,7 +967,7 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
                       });
                     },
                     maxLength: maxLength,
-                  ),
+                  ).workaroundFreezeLinuxMint(),
                 ),
               ],
             ),
